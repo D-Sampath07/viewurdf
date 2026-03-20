@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="en" data-theme="dark">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>View Your URDF</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./style.css" />
+    <script async src="https://ga.jspm.io/npm:es-module-shims@1.10.0/dist/es-module-shims.js"></script>
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://cdn.jsdelivr.net/npm/three@0.161.0/build/three.module.js",
+          "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.161.0/examples/jsm/",
+          "three/examples/jsm/": "https://cdn.jsdelivr.net/npm/three@0.161.0/examples/jsm/"
+        }
+      }
+    </script>
+  </head>
+  <body>
+    <div id="viewer"></div>
+
+    <aside class="control-panel">
+      <div class="panel-header">
+        <div class="panel-title-row">
+          <h1>Arm Controls</h1>
+          <button id="themeToggleBtn" class="theme-toggle-btn" type="button" title="Toggle light / dark mode">☀️</button>
+        </div>
+        <p id="status">Loading robot...</p>
+        <div class="mode-switch">
+          <button id="showJointsBtn" class="mode-btn active" type="button">Joints</button>
+          <button id="showIKBtn" class="mode-btn" type="button">IK</button>
+        </div>
+        <button id="resetJointsBtn" type="button">Reset joints</button>
+      </div>
+
+      <div id="ikPanel" class="ik-section">
+        <div class="ik-priority-switch">
+          <span>IK Priority</span>
+          <div class="ik-priority-actions">
+            <button id="ikModePositionBtn" type="button">Position</button>
+            <button id="ikModePoseBtn" class="active" type="button">Position+Pose</button>
+          </div>
+        </div>
+
+        <div class="nullspace-section">
+          <div class="nullspace-head">
+            <span>Null-Space Exploration</span>
+            <label class="nullspace-enable">
+              <input id="nullspaceEnable" type="checkbox" />
+              Enable
+            </label>
+          </div>
+          <label class="slider-row" for="nullspaceBias">
+            <div class="slider-head">
+              <span>Bias</span>
+              <output id="nullspaceBiasOut" for="nullspaceBias">0%</output>
+            </div>
+            <input id="nullspaceBias" type="range" min="-100" max="100" value="0" step="1" />
+          </label>
+          <div class="nullspace-actions">
+            <button id="nullspacePlayBtn" type="button">Play</button>
+          </div>
+          <p id="nullspaceHint" class="nullspace-hint">Load a redundant robot (7+ joints) to explore null-space.</p>
+        </div>
+
+        <div class="ik-header">
+          <h2>IK Target</h2>
+          <span id="ikStatus" class="ik-status"></span>
+        </div>
+        <p id="ikEEPos" class="ik-ee-pos">End effector: —</p>
+        <div class="ik-inputs pose-list">
+          <label class="slider-row" for="ikX">
+            <div class="slider-head">
+              <span>X (m)</span>
+              <output id="ikXOut" for="ikX">0.000m</output>
+            </div>
+            <input id="ikX" data-pose="x" type="range" min="-0.60" max="0.60" value="0.000" step="0.001" />
+          </label>
+
+          <label class="slider-row" for="ikY">
+            <div class="slider-head">
+              <span>Y (m)</span>
+              <output id="ikYOut" for="ikY">0.000m</output>
+            </div>
+            <input id="ikY" data-pose="y" type="range" min="-0.60" max="0.60" value="0.000" step="0.001" />
+          </label>
+
+          <label class="slider-row" for="ikZ">
+            <div class="slider-head">
+              <span>Z (m)</span>
+              <output id="ikZOut" for="ikZ">0.000m</output>
+            </div>
+            <input id="ikZ" data-pose="z" type="range" min="-0.60" max="0.60" value="0.000" step="0.001" />
+          </label>
+
+          <label class="slider-row" for="ikRoll">
+            <div class="slider-head">
+              <span>Roll (deg)</span>
+              <output id="ikRollOut" for="ikRoll">0deg</output>
+            </div>
+            <input id="ikRoll" data-pose="roll" type="range" min="-180" max="180" value="0" step="1" />
+          </label>
+
+          <label class="slider-row" for="ikPitch">
+            <div class="slider-head">
+              <span>Pitch (deg)</span>
+              <output id="ikPitchOut" for="ikPitch">0deg</output>
+            </div>
+            <input id="ikPitch" data-pose="pitch" type="range" min="-180" max="180" value="0" step="1" />
+          </label>
+
+          <label class="slider-row" for="ikYaw">
+            <div class="slider-head">
+              <span>Yaw (deg)</span>
+              <output id="ikYawOut" for="ikYaw">0deg</output>
+            </div>
+            <input id="ikYaw" data-pose="yaw" type="range" min="-180" max="180" value="0" step="1" />
+          </label>
+        </div>
+        <button id="ikSolveBtn" type="button">Move to target</button>
+        <button id="ikPickEEBtn" type="button">Set EE tip (click on arm)</button>
+      </div>
+
+      <div id="jointsPanel" class="joints-section hidden">
+        <div id="jointSliders" class="slider-list"></div>
+        <div class="workspace-section">
+          <div class="workspace-head">
+            <h2>Workspace</h2>
+            <span id="workspaceInfo" class="workspace-info">No samples</span>
+          </div>
+          <label class="workspace-count" for="workspaceSampleCount">
+            <span>Samples</span>
+            <input id="workspaceSampleCount" type="number" min="200" max="12000" step="200" value="3000" />
+          </label>
+          <div class="workspace-actions">
+            <button id="workspaceGenerateBtn" type="button">Generate</button>
+            <button id="workspaceToggleBtn" type="button">Hide</button>
+            <button id="workspaceClearBtn" type="button">Clear</button>
+          </div>
+        </div>
+      </div>
+    </aside>
+
+    <aside id="uploadPanel" class="upload-panel">
+      <div class="upload-panel-header" id="uploadPanelHeader">
+        <span class="upload-panel-title">Upload Robot</span>
+        <button id="uploadCollapseBtn" class="upload-collapse-btn" type="button" aria-label="Toggle upload panel">▲</button>
+      </div>
+      <div class="upload-panel-body" id="uploadPanelBody">
+        <div class="urdf-upload-row">
+          <span>URDF</span>
+          <div class="urdf-upload-actions">
+            <label class="file-picker-btn">
+              Choose URDF
+              <input id="urdfFileInput" class="file-picker-input" type="file" accept=".urdf,.xml" />
+            </label>
+          </div>
+        </div>
+        <div class="mesh-upload-row">
+          <span>Meshes</span>
+          <div class="mesh-upload-actions">
+            <label class="file-picker-btn">
+              Choose files
+              <input id="meshFilesInput" class="file-picker-input" type="file" multiple />
+            </label>
+            <label class="file-picker-btn">
+              Choose folder
+              <input id="meshFolderInput" class="file-picker-input" type="file" webkitdirectory directory multiple />
+            </label>
+          </div>
+        </div>
+        <button id="loadUploadBtn" type="button">Load uploaded robot</button>
+        <div id="uploadFileList" class="upload-file-list"></div>
+      </div>
+    </aside>
+
+    <script type="module" src="./main.js"></script>
+  </body>
+</html>
